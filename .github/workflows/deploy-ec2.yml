@@ -13,6 +13,14 @@ jobs:
       DEPLOY_BRANCH: ${{ github.ref_name }}
       APP_DIR: ${{ secrets.EC2_APP_DIR }}
       SERVICE_NAME: ${{ secrets.EC2_SERVICE_NAME }}
+      PORT: ${{ secrets.PORT }}
+      MAX_REQUESTS_PER_USER: ${{ secrets.MAX_REQUESTS_PER_USER }}
+      WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+      WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+      WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+      WHATSAPP_API_VERSION: ${{ secrets.WHATSAPP_API_VERSION }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -21,8 +29,12 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || '22' }}
+          envs: >-
+            DEPLOY_BRANCH,APP_DIR,SERVICE_NAME,PORT,MAX_REQUESTS_PER_USER,
+            WHATSAPP_VERIFY_TOKEN,WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID,
+            WHATSAPP_API_VERSION,OPENAI_API_KEY,OPENAI_MODEL
           script: |
-            set -e
+            set -euo pipefail
             if [ -z "$APP_DIR" ]; then
               echo "EC2_APP_DIR is not set" >&2
               exit 1
@@ -31,10 +43,39 @@ jobs:
               echo "EC2_SERVICE_NAME is not set" >&2
               exit 1
             fi
+            if [ -z "${WHATSAPP_VERIFY_TOKEN:-}" ]; then
+              echo "WHATSAPP_VERIFY_TOKEN is not set" >&2
+              exit 1
+            fi
+            if [ -z "${WHATSAPP_ACCESS_TOKEN:-}" ]; then
+              echo "WHATSAPP_ACCESS_TOKEN is not set" >&2
+              exit 1
+            fi
+            if [ -z "${WHATSAPP_PHONE_NUMBER_ID:-}" ]; then
+              echo "WHATSAPP_PHONE_NUMBER_ID is not set" >&2
+              exit 1
+            fi
+            if [ -z "${OPENAI_API_KEY:-}" ]; then
+              echo "OPENAI_API_KEY is not set" >&2
+              exit 1
+            fi
             cd "$APP_DIR"
             git fetch origin "$DEPLOY_BRANCH"
             git checkout -B "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH"
             git reset --hard "origin/$DEPLOY_BRANCH"
             npm ci --omit=dev
+            umask 077
+            tmp_env="$(mktemp)"
+            {
+              printf 'PORT=%s\n' "${PORT:-}"
+              printf 'MAX_REQUESTS_PER_USER=%s\n' "${MAX_REQUESTS_PER_USER:-}"
+              printf 'WHATSAPP_VERIFY_TOKEN=%s\n' "${WHATSAPP_VERIFY_TOKEN}"
+              printf 'WHATSAPP_ACCESS_TOKEN=%s\n' "${WHATSAPP_ACCESS_TOKEN}"
+              printf 'WHATSAPP_PHONE_NUMBER_ID=%s\n' "${WHATSAPP_PHONE_NUMBER_ID}"
+              printf 'WHATSAPP_API_VERSION=%s\n' "${WHATSAPP_API_VERSION:-v18.0}"
+              printf 'OPENAI_API_KEY=%s\n' "${OPENAI_API_KEY}"
+              printf 'OPENAI_MODEL=%s\n' "${OPENAI_MODEL:-gpt-4o}"
+            } > "$tmp_env"
+            mv "$tmp_env" .env
             sudo systemctl restart "$SERVICE_NAME"
             sudo systemctl status "$SERVICE_NAME" --no-pager
