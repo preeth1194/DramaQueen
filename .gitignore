@@ -70,6 +70,9 @@ web_modules/
 .env.*
 !.env.example
 
+# Generated receipt images
+/public/receipts/*.png
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

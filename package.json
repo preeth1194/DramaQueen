@@ -1,0 +1,31 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "The Spiral WhatsApp chatbot backend",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/preeth1194/DramaQueen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/preeth1194/DramaQueen/issues"
+  },
+  "homepage": "https://github.com/preeth1194/DramaQueen#readme",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "canvas": "^3.2.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "form-data": "^4.0.5",
+    "openai": "^6.16.0"
+  }
+}
