@@ -1,0 +1,40 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_BRANCH: ${{ github.ref_name }}
+      APP_DIR: ${{ secrets.EC2_APP_DIR }}
+      SERVICE_NAME: ${{ secrets.EC2_SERVICE_NAME }}
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || '22' }}
+          script: |
+            set -e
+            if [ -z "$APP_DIR" ]; then
+              echo "EC2_APP_DIR is not set" >&2
+              exit 1
+            fi
+            if [ -z "$SERVICE_NAME" ]; then
+              echo "EC2_SERVICE_NAME is not set" >&2
+              exit 1
+            fi
+            cd "$APP_DIR"
+            git fetch origin "$DEPLOY_BRANCH"
+            git checkout -B "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH"
+            git reset --hard "origin/$DEPLOY_BRANCH"
+            npm ci --omit=dev
+            sudo systemctl restart "$SERVICE_NAME"
+            sudo systemctl status "$SERVICE_NAME" --no-pager
