@@ -1,6 +1,7 @@
 export class SessionManager {
   constructor() {
     this.sessions = new Map();
+    this.requestCounts = new Map();
   }
 
   getHistory(phone) {
@@ -23,6 +24,21 @@ export class SessionManager {
   countUserTurns(phone) {
     const history = this.getHistory(phone);
     return history.filter((entry) => entry.role === "user").length;
+  }
+
+  incrementRequestCount(phone) {
+    const current = this.requestCounts.get(phone) || 0;
+    const next = current + 1;
+    this.requestCounts.set(phone, next);
+    return next;
+  }
+
+  getRequestCount(phone) {
+    return this.requestCounts.get(phone) || 0;
+  }
+
+  resetRequestCount(phone) {
+    this.requestCounts.delete(phone);
   }
 
   clearHistory(phone) {

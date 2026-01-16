@@ -22,6 +22,10 @@ const __dirname = path.dirname(__filename);
 app.use("/receipts", express.static(path.join(__dirname, "public", "receipts")));
 
 const sessions = new SessionManager();
+const maxRequestsPerUser = Number.parseInt(
+  process.env.MAX_REQUESTS_PER_USER || "10",
+  10
+);
 
 function parseIncomingMessage(payload) {
   const entry = payload?.entry?.[0];
@@ -94,6 +98,15 @@ app.post("/webhook", async (req, res) => {
   }
 
   const { from, text, name } = incoming;
+  const requestCount = sessions.incrementRequestCount(from);
+  if (Number.isFinite(maxRequestsPerUser) && requestCount > maxRequestsPerUser) {
+    await sendTextMessage(
+      from,
+      "You have reached the 10 message limit for now. Try again later."
+    );
+    return res.sendStatus(200);
+  }
+
   sessions.appendUserMessage(from, text);
   const turnCount = sessions.countUserTurns(from);
 
