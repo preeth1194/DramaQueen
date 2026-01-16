@@ -1,10 +1,15 @@
 import express from "express";
 import dotenv from "dotenv";
+import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { SessionManager } from "./services/sessionManager.js";
 import { createDramaResponse } from "./services/openai.js";
-import { sendImageMessage, sendTextMessage } from "./services/whatsapp.js";
+import {
+  sendImageMessageById,
+  sendTextMessage,
+  uploadMedia,
+} from "./services/whatsapp.js";
 import { generateDoomReceipt } from "./services/imageGenerator.js";
 
 dotenv.config();
@@ -119,17 +124,23 @@ app.post("/webhook", async (req, res) => {
         realityCheck: snap.realityCheck,
       });
 
-      const baseUrl = process.env.BASE_URL;
-      if (!baseUrl) {
-        throw new Error("Missing BASE_URL for image delivery");
+      try {
+        const mediaId = await uploadMedia(receipt.filePath, "image/png");
+        if (!mediaId) {
+          throw new Error("WhatsApp media upload returned no id");
+        }
+        await sendImageMessageById(
+          from,
+          mediaId,
+          "Your doom receipt is ready. Share it on Instagram."
+        );
+      } finally {
+        try {
+          await fs.unlink(receipt.filePath);
+        } catch (cleanupError) {
+          console.warn("Failed to delete receipt file:", cleanupError);
+        }
       }
-
-      const imageUrl = `${baseUrl}/receipts/${receipt.fileName}`;
-      await sendImageMessage(
-        from,
-        imageUrl,
-        "Your doom receipt is ready. Share it on Instagram."
-      );
 
       sessions.clearHistory(from);
     } else {

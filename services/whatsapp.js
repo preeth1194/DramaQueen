@@ -1,4 +1,6 @@
+import fs from "fs";
 import axios from "axios";
+import FormData from "form-data";
 
 function getBaseUrl() {
   const version = process.env.WHATSAPP_API_VERSION || "v18.0";
@@ -6,7 +8,7 @@ function getBaseUrl() {
   if (!phoneNumberId) {
     throw new Error("Missing WHATSAPP_PHONE_NUMBER_ID");
   }
-  return `https://graph.facebook.com/${version}/${phoneNumberId}/messages`;
+  return `https://graph.facebook.com/${version}/${phoneNumberId}`;
 }
 
 function getHeaders() {
@@ -21,7 +23,7 @@ function getHeaders() {
 }
 
 async function sendMessage(payload) {
-  const url = getBaseUrl();
+  const url = `${getBaseUrl()}/messages`;
   const headers = getHeaders();
 
   try {
@@ -30,6 +32,32 @@ async function sendMessage(payload) {
   } catch (error) {
     const message = error?.response?.data || error?.message || error;
     throw new Error(`WhatsApp API error: ${JSON.stringify(message)}`);
+  }
+}
+
+export async function uploadMedia(filePath, mimeType = "image/png") {
+  const url = `${getBaseUrl()}/media`;
+  const headers = getHeaders();
+
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("type", mimeType);
+  form.append("file", fs.createReadStream(filePath), {
+    contentType: mimeType,
+    filename: "doom-receipt.png",
+  });
+
+  try {
+    const response = await axios.post(url, form, {
+      headers: {
+        ...headers,
+        ...form.getHeaders(),
+      },
+    });
+    return response.data?.id;
+  } catch (error) {
+    const message = error?.response?.data || error?.message || error;
+    throw new Error(`WhatsApp media upload error: ${JSON.stringify(message)}`);
   }
 }
 
@@ -43,12 +71,12 @@ export async function sendTextMessage(to, body) {
   return sendMessage(payload);
 }
 
-export async function sendImageMessage(to, imageUrl, caption) {
+export async function sendImageMessageById(to, mediaId, caption) {
   const payload = {
     messaging_product: "whatsapp",
     to,
     type: "image",
-    image: { link: imageUrl, caption },
+    image: { id: mediaId, caption },
   };
   return sendMessage(payload);
 }
